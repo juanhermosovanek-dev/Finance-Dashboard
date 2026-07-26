@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <h1>Finance Dashboard</h1>
+      <span class="app-date" id="today-date"></span>
+    </header>
+
+    <div id="alerts-root" class="alert-stack"></div>
+
+    <div class="quick-add-bar">
+      <button class="primary" id="add-transaction-btn">Add Transaction</button>
+      <button id="add-account-btn">Add Account</button>
+      <button id="add-recurring-btn">Add Recurring Rule</button>
+    </div>
+
+    <main id="dashboard-root">
+      <!-- Populated by js/ui/dashboard.js -->
+    </main>
+
+    <footer class="app-footer">
+      <span>Your data lives only on this device.</span>
+      <span>
+        <button class="text-only" id="export-backup-btn">Export Backup</button>
+        <label class="text-only" style="cursor:pointer; padding: 8px 12px;">
+          Restore Backup
+          <input type="file" id="import-backup-input" accept="application/json" style="display:none" />
+        </label>
+      </span>
+    </footer>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

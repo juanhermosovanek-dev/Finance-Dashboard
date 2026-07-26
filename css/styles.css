@@ -1,0 +1,351 @@
+/* ==========================================================================
+   Design tokens
+   Ledger aesthetic: paper-white surface, deep ink text, muted teal for
+   "on track", soft clay for "needs attention" (never a harsh red).
+   Tabular mono for figures so columns of numbers actually align.
+   ========================================================================== */
+
+:root {
+  /* Color */
+  --color-paper: #FAFAF7;
+  --color-surface: #FFFFFF;
+  --color-ink: #1E211D;
+  --color-ink-soft: #5B5F58;
+  --color-hairline: #E4E1D8;
+  --color-good: #3E7C6B;      /* muted teal-green: on track, growth */
+  --color-good-bg: #EAF2EE;
+  --color-watch: #B5713F;     /* soft clay: gentle nudge, not alarm */
+  --color-watch-bg: #F6EDE3;
+  --color-accent: #2B5C6B;    /* deep steel teal, used sparingly for emphasis */
+
+  /* Type */
+  --font-display: 'Source Serif 4', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius: 6px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5) var(--space-7);
+}
+
+/* ==========================================================================
+   Header
+   ========================================================================== */
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.app-header h1 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+.app-date {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-ink-soft);
+}
+
+/* ==========================================================================
+   Alerts / due items
+   ========================================================================== */
+
+.alert-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.alert-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.alert-card.watch { border-left-color: var(--color-watch); }
+
+.alert-card .alert-text { flex: 1; }
+.alert-card .alert-title { font-weight: 600; margin: 0 0 2px; }
+.alert-card .alert-detail { margin: 0; color: var(--color-ink-soft); font-size: 13px; }
+
+.alert-actions { display: flex; gap: var(--space-2); }
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+button {
+  font-family: var(--font-body);
+  font-size: 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-hairline);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+button:hover { border-color: var(--color-accent); }
+button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+button.primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+button.primary:hover { background: #244d5a; }
+
+button.text-only {
+  border: none;
+  background: none;
+  color: var(--color-ink-soft);
+  padding: var(--space-2) var(--space-3);
+}
+button.text-only:hover { color: var(--color-ink); border: none; }
+
+/* ==========================================================================
+   Dashboard grid of equal-weight cards
+   ========================================================================== */
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+@media (max-width: 720px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-5);
+}
+
+.card-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-soft);
+  margin: 0 0 var(--space-2);
+}
+
+.card-value {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 500;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-sub {
+  font-size: 13px;
+  color: var(--color-ink-soft);
+  margin: var(--space-2) 0 0;
+}
+
+.card-sub.good { color: var(--color-good); }
+.card-sub.watch { color: var(--color-watch); }
+
+.card.wide { grid-column: span 3; }
+@media (max-width: 720px) { .card.wide { grid-column: span 1; } }
+
+/* ==========================================================================
+   Net worth chart card
+   ========================================================================== */
+
+.net-worth-chart { width: 100%; height: 140px; display: block; }
+.chart-empty { color: var(--color-ink-soft); font-size: 13px; }
+
+/* ==========================================================================
+   Sections + tables
+   ========================================================================== */
+
+.section {
+  margin-bottom: var(--space-6);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.section-header h2 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+
+table.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+table.ledger th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-soft);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-hairline);
+  font-weight: 500;
+}
+
+table.ledger td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-hairline);
+  font-size: 14px;
+}
+
+table.ledger tr:last-child td { border-bottom: none; }
+
+table.ledger td.amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+td.amount.negative { color: var(--color-watch); }
+td.amount.positive { color: var(--color-good); }
+
+.tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-hairline);
+  color: var(--color-ink-soft);
+}
+
+/* ==========================================================================
+   Forms / modal
+   ========================================================================== */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(30, 33, 29, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.modal {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-6);
+  width: 420px;
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.modal h2 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  margin: 0 0 var(--space-4);
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.form-row label {
+  font-size: 12px;
+  color: var(--color-ink-soft);
+}
+
+.form-row input,
+.form-row select {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+/* ==========================================================================
+   Footer / backup
+   ========================================================================== */
+
+.app-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-7);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-hairline);
+  font-size: 13px;
+  color: var(--color-ink-soft);
+}
+
+.quick-add-bar {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
