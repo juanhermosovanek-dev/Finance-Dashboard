@@ -58,6 +58,20 @@ async function getAllRecurringRules() {
   return dbGetAll('recurringRules');
 }
 
+/**
+ * Updates an existing rule's details (amount, schedule, accounts, etc.).
+ * Preserves fields like `active` and `occurrencesRemaining` unless the
+ * caller explicitly overrides them.
+ */
+async function updateRecurringRule(id, changes) {
+  const rules = await dbGetAll('recurringRules');
+  const existing = rules.find((r) => r.id === id);
+  if (!existing) throw new Error(`Recurring rule ${id} not found`);
+  const updated = { ...existing, ...changes };
+  await dbPut('recurringRules', updated);
+  return updated;
+}
+
 async function deleteRecurringRule(id) {
   return dbDelete('recurringRules', id);
 }
@@ -167,6 +181,7 @@ async function skipRecurringRuleThisCycle(ruleId) {
 export {
   createRecurringRule,
   getAllRecurringRules,
+  updateRecurringRule,
   deleteRecurringRule,
   checkDueRecurringRules,
   confirmRecurringRule,

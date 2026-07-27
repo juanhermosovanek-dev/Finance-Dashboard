@@ -35,6 +35,24 @@ function monthKey(dateStr) {
   return dateStr.slice(0, 7);
 }
 
+/** Returns 'YYYY' for a given 'YYYY-MM-DD' date string. */
+function yearKey(dateStr) {
+  return dateStr.slice(0, 4);
+}
+
+/**
+ * Estimates a future balance given an annual interest rate, using monthly
+ * compounding (the common convention for savings/loan APR). This is a
+ * simple projection assuming no further deposits or withdrawals, meant to
+ * give a rough sense of scale, not a precise financial forecast.
+ */
+function estimateGrowth(principal, annualRatePercent, years = 1) {
+  if (!annualRatePercent) return principal;
+  const monthlyRate = annualRatePercent / 100 / 12;
+  const months = years * 12;
+  return principal * Math.pow(1 + monthlyRate, months);
+}
+
 /** Adds N months to a 'YYYY-MM-DD' date string, returns a new date string. */
 function addMonths(dateStr, n) {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -63,6 +81,8 @@ export {
   formatMoney,
   formatPercent,
   monthKey,
+  yearKey,
+  estimateGrowth,
   addMonths,
   addDays,
   daysBetween

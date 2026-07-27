@@ -2,10 +2,10 @@
 // Simple modal dialogs for data entry. No form libraries, just direct DOM
 // construction, kept intentionally small since the app only has a few forms.
 
-import { getAllAccounts, createAccount, ACCOUNT_TYPES } from '../models/accounts.js';
+import { getAllAccounts, createAccount, updateAccount, deleteAccount, ACCOUNT_TYPES } from '../models/accounts.js';
 import { getAllCategories } from '../models/categories.js';
-import { addTransaction, updateTransaction, deleteTransaction } from '../models/transactions.js';
-import { createRecurringRule, RECURRENCE } from '../models/recurring.js';
+import { addTransaction, updateTransaction, deleteTransaction, getTransactionsForAccount } from '../models/transactions.js';
+import { createRecurringRule, updateRecurringRule, deleteRecurringRule, RECURRENCE } from '../models/recurring.js';
 import { formatMoney, todayStr } from '../util.js';
 
 function openModal(innerHtml) {
@@ -76,6 +76,14 @@ async function openTransactionForm({ existing = null, onDone } = {}) {
       <select id="tx-from">${accountOptions(existing?.fromAccountId)}</select>
       <label for="tx-to" style="margin-top:8px">To Account</label>
       <select id="tx-to">${accountOptions(existing?.toAccountId)}</select>
+      <label for="tx-purpose" style="margin-top:8px">Purpose (for budget tracking)</label>
+      <select id="tx-purpose">
+        <option value="">Other / not budget-related</option>
+        ${categories
+          .filter((c) => c.bucket === 'savings')
+          .map((c) => `<option value="${c.id}" ${c.id === existing?.categoryId ? 'selected' : ''}>${c.name}</option>`)
+          .join('')}
+      </select>
     </div>
     <div class="form-row">
       <label for="tx-note">Note (optional)</label>
@@ -120,14 +128,16 @@ async function openTransactionForm({ existing = null, onDone } = {}) {
     if (type === 'transfer') {
       const fromAccountId = modal.querySelector('#tx-from').value;
       const toAccountId = modal.querySelector('#tx-to').value;
+      const categoryId = modal.querySelector('#tx-purpose').value || null;
       if (fromAccountId === toAccountId) {
         alert('Pick two different accounts for a transfer.');
         return;
       }
       const fromName = accounts.find((a) => a.id === fromAccountId)?.name;
       const toName = accounts.find((a) => a.id === toAccountId)?.name;
-      payload = { type, amount, date, fromAccountId, toAccountId, note, categoryId: existing?.categoryId || null };
-      summary = `Transfer ${formatMoney(amount)} from ${fromName} to ${toName} on ${date}?`;
+      const purposeName = categories.find((c) => c.id === categoryId)?.name;
+      payload = { type, amount, date, fromAccountId, toAccountId, note, categoryId };
+      summary = `Transfer ${formatMoney(amount)} from ${fromName} to ${toName}${purposeName ? ` (${purposeName})` : ''} on ${date}?`;
     } else {
       const accountId = modal.querySelector('#tx-account').value;
       const categoryId = type === 'expense' ? modal.querySelector('#tx-category').value : null;
@@ -236,6 +246,11 @@ async function openAddAccountForm(onDone) {
       <input id="acct-balance" type="number" step="0.01" value="0" />
       <p id="acct-balance-help" style="font-size:12px;color:var(--color-ink-soft);margin:2px 0 0;"></p>
     </div>
+    <div class="form-row">
+      <label id="acct-rate-label" for="acct-rate">Interest / Growth Rate (annual %, optional)</label>
+      <input id="acct-rate" type="number" step="0.01" placeholder="e.g. 4.5" />
+      <p style="font-size:12px;color:var(--color-ink-soft);margin:2px 0 0;">Used only to show a rough growth estimate. Leave blank if unsure.</p>
+    </div>
     <div class="form-actions">
       <button class="text-only" id="acct-cancel">Cancel</button>
       <button class="primary" id="acct-save">Save Account</button>
@@ -264,6 +279,8 @@ async function openAddAccountForm(onDone) {
     const name = modal.querySelector('#acct-name').value.trim();
     const type = typeSelect.value;
     const rawBalance = parseFloat(modal.querySelector('#acct-balance').value) || 0;
+    const rawRate = modal.querySelector('#acct-rate').value;
+    const interestRate = rawRate === '' ? null : parseFloat(rawRate);
     // For debt-type accounts, whatever the user typed is treated as an
     // amount owed, so it's always stored as negative regardless of the sign
     // they actually typed.
@@ -275,7 +292,7 @@ async function openAddAccountForm(onDone) {
     }
 
     try {
-      await createAccount({ name, type, startingBalance });
+      await createAccount({ name, type, startingBalance, interestRate });
       closeModal();
       onDone?.();
     } catch (err) {
@@ -285,70 +302,159 @@ async function openAddAccountForm(onDone) {
 }
 
 /**
- * Form for setting up a recurring rule: paycheck (income), savings/investing
- * transfer, or the fixed debt-payment schedule. This is how Phase 5's
- * automation gets configured, rather than being hardcoded into the app.
+ * Editing an account only covers name and interest rate. Type and balance
+ * aren't editable here on purpose: type affects how the whole app interprets
+ * the account's transaction signs, and balance is always a derived total
+ * from transaction history, not something to hand-edit (the one exception,
+ * the starting balance, has its own dedicated edit form).
  */
-async function openAddRecurringForm(onDone) {
+async function openEditAccountForm(account, onDone) {
+  const modal = openModal(`
+    <h2>Edit Account</h2>
+    <div class="form-row">
+      <label for="acct-edit-name">Name</label>
+      <input id="acct-edit-name" type="text" value="${account.name}" />
+    </div>
+    <div class="form-row">
+      <label>Type</label>
+      <input type="text" value="${account.type}" disabled />
+      <p style="font-size:12px;color:var(--color-ink-soft);margin:2px 0 0;">
+        Account type can't be changed after creation. Delete and re-add if you need a different type.
+      </p>
+    </div>
+    <div class="form-row">
+      <label for="acct-edit-rate">Interest / Growth Rate (annual %, optional)</label>
+      <input id="acct-edit-rate" type="number" step="0.01" value="${account.interestRate ?? ''}" placeholder="e.g. 4.5" />
+    </div>
+    <div class="form-actions">
+      <button class="text-only" id="acct-edit-cancel">Cancel</button>
+      <button class="primary" id="acct-edit-save">Save Changes</button>
+    </div>
+  `);
+
+  modal.querySelector('#acct-edit-cancel').addEventListener('click', closeModal);
+  modal.querySelector('#acct-edit-save').addEventListener('click', async () => {
+    const name = modal.querySelector('#acct-edit-name').value.trim();
+    const rawRate = modal.querySelector('#acct-edit-rate').value;
+    const interestRate = rawRate === '' ? null : parseFloat(rawRate);
+
+    if (!name) {
+      alert('Give the account a name.');
+      return;
+    }
+
+    try {
+      await updateAccount(account.id, { name, interestRate });
+      closeModal();
+      onDone?.();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+}
+
+/**
+ * Deleting an account also deletes every transaction tied to it (as either
+ * its own account, or the from/to side of a transfer), otherwise those
+ * transactions would point at an account that no longer exists. This is
+ * spelled out explicitly in the confirmation since it's not undoable.
+ */
+async function confirmAndDeleteAccount(account, onDone) {
+  const relatedCount = (await getTransactionsForAccount(account.id)).length;
+  const warning =
+    relatedCount > 0
+      ? `Delete "${account.name}"? This will also permanently delete ${relatedCount} transaction${relatedCount === 1 ? '' : 's'} tied to it. This cannot be undone.`
+      : `Delete "${account.name}"? This cannot be undone.`;
+
+  if (!confirm(warning)) return;
+
+  const related = await getTransactionsForAccount(account.id);
+  for (const tx of related) {
+    await deleteTransaction(tx.id);
+  }
+  await deleteAccount(account.id);
+  onDone?.();
+}
+
+/**
+ * Form for setting up (or editing) a recurring rule: paycheck (income),
+ * savings/investing transfer, or the temporary debt-payment schedule. Pass
+ * `existing` to edit a rule already in place.
+ */
+async function openRecurringRuleForm({ existing = null, onDone } = {}) {
   const accounts = await getAllAccounts();
   const categories = await getAllCategories();
-  const accountOptions = accounts.map((a) => `<option value="${a.id}">${a.name}</option>`).join('');
+  const accountOptions = (selectedId) =>
+    accounts.map((a) => `<option value="${a.id}" ${a.id === selectedId ? 'selected' : ''}>${a.name}</option>`).join('');
   const savingsCategory = categories.find((c) => c.name === 'Savings');
   const investingCategory = categories.find((c) => c.name === 'Investing');
 
+  const isEdit = !!existing;
+  const derivedKind = existing
+    ? existing.kind === 'transfer'
+      ? existing.categoryId === investingCategory?.id
+        ? 'transfer-investing'
+        : 'transfer-savings'
+      : existing.kind === 'expense'
+      ? 'expense-debt'
+      : 'income'
+    : 'income';
+
+  const kindLabel = (value, label) => `<option value="${value}" ${derivedKind === value ? 'selected' : ''}>${label}</option>`;
+
   const modal = openModal(`
-    <h2>Add Recurring Rule</h2>
+    <h2>${isEdit ? 'Edit Recurring Rule' : 'Add Recurring Rule'}</h2>
     <div class="form-row">
       <label for="rec-kind">What is this?</label>
-      <select id="rec-kind">
-        <option value="income">Paycheck (income)</option>
-        <option value="transfer-savings">Automatic transfer to Savings (emergency fund)</option>
-        <option value="transfer-investing">Automatic transfer to Investing</option>
-        <option value="expense-debt">Temporary debt payment (repeats a set number of times, then stops)</option>
+      <select id="rec-kind" ${isEdit ? 'disabled' : ''}>
+        ${kindLabel('income', 'Paycheck (income)')}
+        ${kindLabel('transfer-savings', 'Automatic transfer to Savings (emergency fund)')}
+        ${kindLabel('transfer-investing', 'Automatic transfer to Investing')}
+        ${kindLabel('expense-debt', 'Temporary debt payment (repeats a set number of times, then stops)')}
       </select>
     </div>
     <div class="form-row">
       <label for="rec-name">Name</label>
-      <input id="rec-name" type="text" placeholder="e.g. Biweekly Paycheck" />
+      <input id="rec-name" type="text" placeholder="e.g. Biweekly Paycheck" value="${existing?.name || ''}" />
     </div>
     <div class="form-row">
       <label for="rec-recurrence">Frequency</label>
       <select id="rec-recurrence">
-        <option value="${RECURRENCE.MONTHLY}">Monthly</option>
-        <option value="${RECURRENCE.BIWEEKLY}">Every 2 weeks</option>
+        <option value="${RECURRENCE.MONTHLY}" ${existing?.recurrence === RECURRENCE.MONTHLY ? 'selected' : ''}>Monthly</option>
+        <option value="${RECURRENCE.BIWEEKLY}" ${existing?.recurrence === RECURRENCE.BIWEEKLY ? 'selected' : ''}>Every 2 weeks</option>
       </select>
     </div>
     <div class="form-row">
       <label for="rec-amount">Usual Amount</label>
-      <input id="rec-amount" type="number" step="0.01" min="0.01" />
+      <input id="rec-amount" type="number" step="0.01" min="0.01" value="${existing?.amount ?? ''}" />
     </div>
     <div id="rec-account-row" class="form-row">
       <label for="rec-account">Account (paying from)</label>
-      <select id="rec-account">${accountOptions}</select>
+      <select id="rec-account">${accountOptions(existing?.accountId)}</select>
     </div>
     <div id="rec-debt-category-row" class="form-row" style="display:none">
       <label for="rec-debt-category">Category</label>
-      <select id="rec-debt-category">${categories.map((c) => `<option value="${c.id}">${c.name}</option>`).join('')}</select>
+      <select id="rec-debt-category">${categories.map((c) => `<option value="${c.id}" ${c.id === existing?.categoryId ? 'selected' : ''}>${c.name}</option>`).join('')}</select>
     </div>
     <div id="rec-from-row" class="form-row" style="display:none">
       <label for="rec-from">From Account</label>
-      <select id="rec-from">${accountOptions}</select>
+      <select id="rec-from">${accountOptions(existing?.fromAccountId)}</select>
     </div>
     <div id="rec-to-row" class="form-row" style="display:none">
       <label for="rec-to">To Account</label>
-      <select id="rec-to">${accountOptions}</select>
+      <select id="rec-to">${accountOptions(existing?.toAccountId)}</select>
     </div>
     <div id="rec-occurrences-row" class="form-row" style="display:none">
       <label for="rec-occurrences">Number of payments remaining</label>
-      <input id="rec-occurrences" type="number" min="1" value="4" />
+      <input id="rec-occurrences" type="number" min="1" value="${existing?.occurrencesRemaining ?? 4}" />
     </div>
     <div class="form-row">
       <label for="rec-next-date">Next Due Date</label>
-      <input id="rec-next-date" type="date" value="${todayStr()}" />
+      <input id="rec-next-date" type="date" value="${existing?.nextDueDate || todayStr()}" />
     </div>
     <div class="form-actions">
       <button class="text-only" id="rec-cancel">Cancel</button>
-      <button class="primary" id="rec-save">Save Rule</button>
+      <button class="primary" id="rec-save">${isEdit ? 'Save Changes' : 'Save Rule'}</button>
     </div>
   `);
 
@@ -385,37 +491,26 @@ async function openAddRecurringForm(onDone) {
     }
 
     try {
+      let payload;
       if (kind === 'income') {
         const accountId = modal.querySelector('#rec-account').value;
-        await createRecurringRule({ name, kind: 'income', recurrence, amount, accountId, nextDueDate });
+        payload = { name, kind: 'income', recurrence, amount, accountId, nextDueDate };
       } else if (kind === 'transfer-savings' || kind === 'transfer-investing') {
         const fromAccountId = modal.querySelector('#rec-from').value;
         const toAccountId = modal.querySelector('#rec-to').value;
         const categoryId = kind === 'transfer-savings' ? savingsCategory?.id : investingCategory?.id;
-        await createRecurringRule({
-          name,
-          kind: 'transfer',
-          recurrence,
-          amount,
-          fromAccountId,
-          toAccountId,
-          categoryId,
-          nextDueDate
-        });
+        payload = { name, kind: 'transfer', recurrence, amount, fromAccountId, toAccountId, categoryId, nextDueDate };
       } else if (kind === 'expense-debt') {
         const accountId = modal.querySelector('#rec-account').value;
         const categoryId = modal.querySelector('#rec-debt-category').value;
         const occurrencesRemaining = parseInt(modal.querySelector('#rec-occurrences').value, 10) || 1;
-        await createRecurringRule({
-          name,
-          kind: 'expense',
-          recurrence,
-          amount,
-          accountId,
-          categoryId,
-          nextDueDate,
-          occurrencesRemaining
-        });
+        payload = { name, kind: 'expense', recurrence, amount, accountId, categoryId, nextDueDate, occurrencesRemaining };
+      }
+
+      if (isEdit) {
+        await updateRecurringRule(existing.id, payload);
+      } else {
+        await createRecurringRule(payload);
       }
       closeModal();
       onDone?.();
@@ -425,12 +520,31 @@ async function openAddRecurringForm(onDone) {
   });
 }
 
+function openAddRecurringForm(onDone) {
+  return openRecurringRuleForm({ onDone });
+}
+
+function openEditRecurringForm(existing, onDone) {
+  return openRecurringRuleForm({ existing, onDone });
+}
+
+/** Confirms with the user, then permanently deletes a recurring rule. */
+async function confirmAndDeleteRecurringRule(rule, onDone) {
+  if (!confirm(`Delete the recurring rule "${rule.name}"? This cannot be undone.`)) return;
+  await deleteRecurringRule(rule.id);
+  onDone?.();
+}
+
 export {
   openAddTransactionForm,
   openEditTransactionForm,
   confirmAndDeleteTransaction,
   openAddAccountForm,
+  openEditAccountForm,
+  confirmAndDeleteAccount,
   openAddRecurringForm,
+  openEditRecurringForm,
+  confirmAndDeleteRecurringRule,
   openModal,
   closeModal
 };

@@ -7,7 +7,7 @@
 // These percentages are stored as data, not hardcoded, so they're editable
 // later without a code change.
 
-import { dbGetAll, dbAdd, dbPut } from '../db/db.js';
+import { dbGetAll, dbPut } from '../db/db.js';
 import { getTransactionsBetween } from './transactions.js';
 import { getAllCategories, BUDGET_BUCKETS } from './categories.js';
 import { generateId, monthKey } from '../util.js';
@@ -23,7 +23,11 @@ const DEFAULT_RULE = {
 async function seedDefaultBudgetRuleIfNeeded() {
   const existing = await dbGetAll('budgetRules');
   if (existing.length > 0) return existing[0];
-  await dbAdd('budgetRules', DEFAULT_RULE);
+  // Using dbPut (upsert) instead of dbAdd (insert) here on purpose: if a
+  // 'default' row already exists for any reason (a leftover from before a
+  // reset, a race between two tabs loading at once), this just overwrites
+  // it cleanly instead of throwing and crashing the whole app on startup.
+  await dbPut('budgetRules', DEFAULT_RULE);
   return DEFAULT_RULE;
 }
 

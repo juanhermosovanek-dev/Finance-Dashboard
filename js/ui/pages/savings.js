@@ -1,4 +1,6 @@
-// ui/pages/investments.js
+// ui/pages/savings.js
+// Mirrors the Investments page, but for Savings-type accounts and
+// contributions tagged to the "Savings" (emergency fund) budget category.
 
 import { getAllTransactions } from '../../models/transactions.js';
 import { getAllAccounts, getAccountBalance, ACCOUNT_TYPES } from '../../models/accounts.js';
@@ -7,50 +9,50 @@ import { formatMoney, todayStr, monthKey, yearKey, estimateGrowth } from '../../
 import { renderTransactionTable } from '../transactionTable.js';
 import { openEditTransactionForm, confirmAndDeleteTransaction, openEditAccountForm, confirmAndDeleteAccount } from '../forms.js';
 
-async function renderInvestmentsPage(root, onChanged) {
+async function renderSavingsPage(root, onChanged) {
   const [transactions, accounts, categories] = await Promise.all([
     getAllTransactions(),
     getAllAccounts(),
     getAllCategories()
   ]);
 
-  const investmentAccounts = accounts.filter((a) => a.type === ACCOUNT_TYPES.INVESTMENT);
-  const investmentAccountIds = new Set(investmentAccounts.map((a) => a.id));
+  const savingsAccounts = accounts.filter((a) => a.type === ACCOUNT_TYPES.SAVINGS);
+  const savingsAccountIds = new Set(savingsAccounts.map((a) => a.id));
+  const savingsCategory = categories.find((c) => c.name === 'Savings');
 
   const relatedTransactions = transactions.filter(
     (tx) =>
-      investmentAccountIds.has(tx.accountId) ||
-      investmentAccountIds.has(tx.fromAccountId) ||
-      investmentAccountIds.has(tx.toAccountId)
+      savingsAccountIds.has(tx.accountId) ||
+      savingsAccountIds.has(tx.fromAccountId) ||
+      savingsAccountIds.has(tx.toAccountId) ||
+      tx.categoryId === savingsCategory?.id
   );
 
-  // "Contributions" = money moved into an investment account (transfers in,
-  // or the recurring investing transfer specifically).
-  const contributions = relatedTransactions.filter(
-    (tx) => tx.type === 'transfer' && investmentAccountIds.has(tx.toAccountId)
-  );
+  // "Contributions" = anything tagged as the Savings/emergency-fund budget
+  // category, whether it's a transfer or a direct deposit.
+  const contributions = relatedTransactions.filter((tx) => tx.categoryId === savingsCategory?.id);
   const currentMonth = monthKey(todayStr());
   const currentYear = yearKey(todayStr());
   const thisMonthContrib = contributions.filter((tx) => monthKey(tx.date) === currentMonth).reduce((s, tx) => s + tx.amount, 0);
   const thisYearContrib = contributions.filter((tx) => yearKey(tx.date) === currentYear).reduce((s, tx) => s + tx.amount, 0);
   const allTimeContrib = contributions.reduce((s, tx) => s + tx.amount, 0);
 
-  let totalInvested = 0;
+  let totalSaved = 0;
   const balanceRows = [];
-  for (const acct of investmentAccounts) {
+  for (const acct of savingsAccounts) {
     const balance = await getAccountBalance(acct.id);
-    totalInvested += balance;
+    totalSaved += balance;
     balanceRows.push({ account: acct, balance });
   }
 
   root.innerHTML = `
-    <div class="section-header"><h2>Investments</h2></div>
+    <div class="section-header"><h2>Savings &amp; Emergency Fund</h2></div>
     ${
-      investmentAccounts.length === 0
-        ? `<p class="empty-state">No investment accounts yet. Add one from "Add Account" and choose the Investment type.</p>`
+      savingsAccounts.length === 0
+        ? `<p class="empty-state">No savings accounts yet. Add one from "Add Account" and choose the Savings type.</p>`
         : `
           <div class="dashboard-grid" style="margin-bottom:24px;">
-            <div class="card"><p class="card-label">Total Invested</p><p class="card-value positive">${formatMoney(totalInvested)}</p></div>
+            <div class="card"><p class="card-label">Total Saved</p><p class="card-value positive">${formatMoney(totalSaved)}</p></div>
             <div class="card"><p class="card-label">Contributed This Month</p><p class="card-value positive">${formatMoney(thisMonthContrib)}</p></div>
             <div class="card"><p class="card-label">Contributed This Year</p><p class="card-value positive">${formatMoney(thisYearContrib)}</p></div>
             <div class="card"><p class="card-label">Contributed All Time</p><p class="card-value positive">${formatMoney(allTimeContrib)}</p></div>
@@ -59,13 +61,13 @@ async function renderInvestmentsPage(root, onChanged) {
             <div class="section-header"><h2>Accounts</h2></div>
             ${renderAccountsTable(balanceRows)}
           </div>
-          <div id="investments-table"></div>
+          <div id="savings-table"></div>
         `
     }
   `;
 
-  if (investmentAccounts.length > 0) {
-    renderTransactionTable(root.querySelector('#investments-table'), relatedTransactions, accounts, categories, {
+  if (savingsAccounts.length > 0) {
+    renderTransactionTable(root.querySelector('#savings-table'), relatedTransactions, accounts, categories, {
       onEdit: (tx) => openEditTransactionForm(tx, onChanged),
       onDelete: (tx) => confirmAndDeleteTransaction(tx, onChanged)
     });
@@ -99,10 +101,10 @@ function renderAccountsTable(balanceRows) {
     .join('');
   return `
     <table class="ledger">
-      <thead><tr><th>Account</th><th>Balance</th><th>Est. Annual Return</th><th>Est. in 1 Year</th><th></th></tr></thead>
+      <thead><tr><th>Account</th><th>Balance</th><th>Interest Rate</th><th>Est. in 1 Year</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   `;
 }
 
-export { renderInvestmentsPage };
+export { renderSavingsPage };

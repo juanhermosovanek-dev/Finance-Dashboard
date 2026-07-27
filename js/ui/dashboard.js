@@ -1,17 +1,22 @@
 // ui/dashboard.js
 // Renders the Summary page: net worth, spending, emergency fund, investing,
-// cash flow, an accounts overview, a budget-split donut, and recent
-// transactions with edit/delete.
+// cash flow, an accounts overview (with edit/delete + growth estimates), a
+// budget-split donut, and recent transactions with edit/delete.
 
 import { getAllAccounts, getAccountBalance } from '../models/accounts.js';
 import { calculateNetWorth, getNetWorthHistory } from '../models/netWorth.js';
 import { getBudgetProgressForMonth } from '../models/budget.js';
 import { getAllTransactions } from '../models/transactions.js';
 import { getAllCategories } from '../models/categories.js';
-import { formatMoney, todayStr, monthKey } from '../util.js';
+import { formatMoney, todayStr, monthKey, estimateGrowth } from '../util.js';
 import { renderLineChart, renderDonutChart } from './chart.js';
 import { renderTransactionTable } from './transactionTable.js';
-import { openEditTransactionForm, confirmAndDeleteTransaction } from './forms.js';
+import {
+  openEditTransactionForm,
+  confirmAndDeleteTransaction,
+  openEditAccountForm,
+  confirmAndDeleteAccount
+} from './forms.js';
 
 async function renderDashboard(root, onChanged) {
   const currentMonth = monthKey(todayStr());
@@ -32,7 +37,7 @@ async function renderDashboard(root, onChanged) {
     accounts.map(async (a) => {
       const breakdown = netWorth.breakdown.find((b) => b.accountId === a.id);
       const balance = breakdown ? breakdown.balance : await getAccountBalance(a.id);
-      return { name: a.name, type: a.type, balance };
+      return { account: a, balance };
     })
   );
 
@@ -87,6 +92,13 @@ async function renderDashboard(root, onChanged) {
     onEdit: (tx) => openEditTransactionForm(tx, onChanged),
     onDelete: (tx) => confirmAndDeleteTransaction(tx, onChanged)
   });
+
+  root.querySelectorAll('tr[data-account-id]').forEach((row) => {
+    const accountId = row.dataset.accountId;
+    const entry = accountRows.find((r) => r.account.id === accountId);
+    row.querySelector('.edit-btn')?.addEventListener('click', () => openEditAccountForm(entry.account, onChanged));
+    row.querySelector('.delete-btn')?.addEventListener('click', () => confirmAndDeleteAccount(entry.account, onChanged));
+  });
 }
 
 function renderAccountsTable(accountRows) {
@@ -94,20 +106,29 @@ function renderAccountsTable(accountRows) {
     return `<p class="empty-state">No accounts yet.</p>`;
   }
   const rows = accountRows
-    .map((a) => {
-      const cls = a.balance >= 0 ? 'positive' : 'negative';
+    .map(({ account, balance }) => {
+      const cls = balance >= 0 ? 'positive' : 'negative';
+      const growth = account.interestRate
+        ? formatMoney(estimateGrowth(balance, account.interestRate, 1))
+        : '\u2014';
       return `
-        <tr>
-          <td>${a.name}</td>
-          <td><span class="tag">${typeLabel(a.type)}</span></td>
-          <td class="amount ${cls}">${formatMoney(a.balance)}</td>
+        <tr data-account-id="${account.id}">
+          <td>${account.name}</td>
+          <td><span class="tag">${typeLabel(account.type)}</span></td>
+          <td class="amount ${cls}">${formatMoney(balance)}</td>
+          <td class="amount">${account.interestRate ? `${account.interestRate}%` : '\u2014'}</td>
+          <td class="amount">${growth}</td>
+          <td class="row-actions">
+            <button class="icon-btn edit-btn">Edit</button>
+            <button class="icon-btn delete delete-btn">Delete</button>
+          </td>
         </tr>
       `;
     })
     .join('');
   return `
     <table class="ledger">
-      <thead><tr><th>Account</th><th>Type</th><th>Balance</th></tr></thead>
+      <thead><tr><th>Account</th><th>Type</th><th>Balance</th><th>Rate</th><th>Est. in 1 Year</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   `;

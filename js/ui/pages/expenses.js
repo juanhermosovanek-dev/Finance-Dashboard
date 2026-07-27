@@ -3,7 +3,7 @@
 import { getAllTransactions } from '../../models/transactions.js';
 import { getAllAccounts } from '../../models/accounts.js';
 import { getAllCategories } from '../../models/categories.js';
-import { formatMoney, todayStr, monthKey } from '../../util.js';
+import { formatMoney, todayStr, monthKey, yearKey } from '../../util.js';
 import { renderTransactionTable } from '../transactionTable.js';
 import { renderDonutChart } from '../chart.js';
 import { openEditTransactionForm, confirmAndDeleteTransaction } from '../forms.js';
@@ -26,8 +26,11 @@ async function renderExpensesPage(root, onChanged) {
 
   const expenses = transactions.filter((tx) => tx.type === 'expense');
   const currentMonth = monthKey(todayStr());
+  const currentYear = yearKey(todayStr());
   const thisMonthExpenses = expenses.filter((tx) => monthKey(tx.date) === currentMonth);
+  const thisYearExpenses = expenses.filter((tx) => yearKey(tx.date) === currentYear);
   const thisMonthTotal = thisMonthExpenses.reduce((s, tx) => s + tx.amount, 0);
+  const thisYearTotal = thisYearExpenses.reduce((s, tx) => s + tx.amount, 0);
   const allTimeTotal = expenses.reduce((s, tx) => s + tx.amount, 0);
 
   const categoryById = Object.fromEntries(categories.map((c) => [c.id, c]));
@@ -50,10 +53,14 @@ async function renderExpensesPage(root, onChanged) {
         <p class="card-value negative">${formatMoney(thisMonthTotal)}</p>
       </div>
       <div class="card">
+        <p class="card-label">This Year</p>
+        <p class="card-value negative">${formatMoney(thisYearTotal)}</p>
+      </div>
+      <div class="card">
         <p class="card-label">All Time</p>
         <p class="card-value negative">${formatMoney(allTimeTotal)}</p>
       </div>
-      <div class="card">
+      <div class="card wide">
         <p class="card-label">This Month by Category</p>
         <div id="expenses-donut"></div>
       </div>
@@ -61,7 +68,7 @@ async function renderExpensesPage(root, onChanged) {
     <div id="expenses-table"></div>
   `;
 
-  renderDonutChart(root.querySelector('#expenses-donut'), donutSegments, { size: 130 });
+  renderDonutChart(root.querySelector('#expenses-donut'), donutSegments, { size: 140 });
 
   renderTransactionTable(root.querySelector('#expenses-table'), expenses, accounts, categories, {
     onEdit: (tx) => openEditTransactionForm(tx, onChanged),

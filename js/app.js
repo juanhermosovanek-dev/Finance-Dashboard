@@ -13,9 +13,11 @@ import { exportBackup, importBackup } from './models/backup.js';
 import { renderDashboard } from './ui/dashboard.js';
 import { renderExpensesPage } from './ui/pages/expenses.js';
 import { renderIncomePage } from './ui/pages/income.js';
+import { renderSavingsPage } from './ui/pages/savings.js';
 import { renderInvestmentsPage } from './ui/pages/investments.js';
 import { renderAlerts } from './ui/alerts.js';
 import { openAddTransactionForm, openAddAccountForm, openAddRecurringForm } from './ui/forms.js';
+import { openRecurringRulesModal } from './ui/recurringRulesModal.js';
 import { showMonthEndWrapUp } from './ui/monthEndModal.js';
 import { todayStr } from './util.js';
 
@@ -23,6 +25,7 @@ const PAGES = {
   summary: renderDashboard,
   expenses: renderExpensesPage,
   income: renderIncomePage,
+  savings: renderSavingsPage,
   investments: renderInvestmentsPage
 };
 
@@ -75,8 +78,14 @@ function showApp() {
 
 async function initApp() {
   await openDatabase();
-  await seedDefaultCategoriesIfNeeded();
-  await seedDefaultBudgetRuleIfNeeded();
+  // Seeding failures shouldn't take down the whole app, worst case the
+  // categories or budget rule get created on a later visit instead.
+  try {
+    await seedDefaultCategoriesIfNeeded();
+    await seedDefaultBudgetRuleIfNeeded();
+  } catch (err) {
+    console.warn('Startup seeding had an issue (non-fatal):', err.message);
+  }
 
   document.querySelector('#today-date').textContent = todayStr();
 
@@ -100,6 +109,10 @@ async function initApp() {
 
   document.querySelector('#add-recurring-btn').addEventListener('click', () => {
     openAddRecurringForm(refreshApp);
+  });
+
+  document.querySelector('#manage-recurring-btn').addEventListener('click', () => {
+    openRecurringRulesModal(refreshApp);
   });
 
   document.querySelector('#export-backup-btn').addEventListener('click', () => {
@@ -133,8 +146,14 @@ async function initApp() {
 
   await refreshApp();
 
-  const wrapUp = await checkMonthEndWrapUp();
-  if (wrapUp) showMonthEndWrapUp(wrapUp);
+  // Same principle as the seeding step above: this is a nice-to-have, it
+  // should never be able to take the whole app down if it hits a snag.
+  try {
+    const wrapUp = await checkMonthEndWrapUp();
+    if (wrapUp) showMonthEndWrapUp(wrapUp);
+  } catch (err) {
+    console.warn('Month-end wrap-up check had an issue (non-fatal):', err.message);
+  }
 }
 
 start().catch((err) => {
