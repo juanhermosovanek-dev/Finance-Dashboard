@@ -1,44 +1,51 @@
 # Juan Personal Finances
 
-A personal finance dashboard that runs as a website and saves your data to a
-free Supabase database, so it's not tied to one browser or device.
+A professional-grade personal finance dashboard, benchmarked against
+Monarch, Copilot, and YNAB. Runs as a website, saves your data to a free
+Supabase database. Argentina-themed, single user, no subscription.
 
 Your Supabase keys are already filled in (`js/config.js`).
 
-## What's new in this update
+## What's new in this rebuild
 
-- **Fixed: manual transfers to savings/investing weren't counting.** The
-  "Add Transaction" transfer form now has a Purpose field, tag a transfer as
-  Savings or Investing and it'll count toward your budget targets and show
-  up on the new Savings/Investments pages.
-- **New Savings page**, mirroring the Investments page: savings account
-  balances, emergency fund contributions (month/year/all-time), and history.
-- **Monthly and yearly totals** added to Expenses, Income, Investments, and
-  Savings, not just "all time."
-- **Edit and delete accounts**, from the Accounts table on the Summary,
-  Investments, or Savings pages. Deleting an account also deletes every
-  transaction tied to it (you're warned first, with the count).
-- **Edit and delete recurring rules** after the fact via the new "Manage
-  Recurring Rules" button, change the amount, schedule, or stop one
-  entirely, not just adjust a single occurrence at confirm time.
-- **Interest/growth rate** field added to accounts (savings, investments,
-  and loans). Where set, an "Est. in 1 Year" projection shows up next to
-  the balance, a simple compounding estimate, not a precise forecast.
+This update closes the biggest gaps versus commercial finance apps that are
+actually achievable without paid bank-sync services:
+
+- **Goals**: set a target amount (and optional date) linked to any account,
+  track progress with a visual bar. Shown on the Summary page.
+- **Custom categories**: no longer locked to the original 6, add, rename, or
+  remove your own from the new Categories manager (Manage menu). "Savings"
+  and "Investing" stay protected since the budget math depends on them.
+- **Search and pagination** on every transaction table, so it stays usable
+  once your history grows past a couple dozen entries.
+- **CSV export**, in addition to the full JSON backup, for taxes or opening
+  in a spreadsheet.
+- **Plain-language monthly insight**: the month-end wrap-up now includes a
+  one-line comparison ("You spent 12% less than the previous month").
+- **Reorganized navigation**: setup actions (Add Account, Categories,
+  Recurring Rules) moved into a "Manage" menu instead of crowding the main
+  toolbar, exports moved into an "Export/Backup" menu. Matches how
+  Monarch/YNAB separate daily actions from occasional settings.
+- **Favicon and search-engine opt-out** for a more finished, private feel.
 
 ## One-time setup
 
-1. **Run the schema** (skip if you already did this): in your Supabase
-   project's SQL Editor, paste in `supabase-schema.sql` and run it
-2. **Turn off email confirmation** (skip if already done): Authentication →
-   Providers → Email → toggle off "Confirm email"
+### If you're already running the app
+Run the small additive migration (safe, doesn't touch existing data):
 
-No destructive reset is needed for this update, the database structure is
-unchanged (new fields like interest rate just live inside existing records),
-so your current data is safe.
+1. Supabase → SQL Editor → paste in `supabase-migration-goals.sql` → Run
 
-### If you ever do want to start completely fresh
+That's it, everything else (categories, search, CSV export) needed no
+database changes, they're new fields inside existing records.
 
-Only do this if you actually want to wipe everything:
+### If you're starting completely fresh
+1. Run the full `supabase-schema.sql` in the SQL Editor
+2. Authentication → Providers → Email → toggle off "Confirm email"
+3. Authentication → Providers → Email → toggle off "Allow new users to sign
+   up" once you've created your own account (keeps it to you only)
+
+### To wipe everything and start over
+Only if you actually want to lose all your data:
 
 ```sql
 drop table if exists accounts cascade;
@@ -48,10 +55,10 @@ drop table if exists budget_rules cascade;
 drop table if exists balance_snapshots cascade;
 drop table if exists recurring_rules cascade;
 drop table if exists app_state cascade;
+drop table if exists goals cascade;
 ```
 
-Then run the full `supabase-schema.sql` again, refresh the app, and you're
-back to a blank slate.
+Then run `supabase-schema.sql` again.
 
 ## Hosting it
 
@@ -60,35 +67,29 @@ Pages updates automatically at the same URL.
 
 ## Using the app
 
-- **Summary**: net worth, budget progress, accounts overview (with
-  edit/delete and growth estimates), recent activity
-- **Expenses**: every expense, with month/year/all-time totals and a
-  category breakdown chart
-- **Income**: every paycheck/income entry, with month/year/all-time totals
-- **Savings**: your savings accounts and emergency fund contributions
-- **Investments**: your investment accounts and contributions
-- Every transaction and every account can be edited or deleted, from any
-  page
-- **Add Recurring Rule** sets up your paycheck, transfers, and temporary
-  debt payments. **Manage Recurring Rules** lets you edit or remove them
-  later, separate from the one-time "confirm this occurrence" prompt
+**Navigation**: Summary, Expenses, Income, Savings, Investments tabs across
+the top.
 
-## Adding to savings or your emergency fund
+**Add Transaction** (primary button): the one action you'll use daily.
 
-Use "Add Transaction" → Transfer → pick the Purpose dropdown (Savings or
-Investing). This is what makes a transfer count toward your budget targets
-and appear on the Savings/Investments pages, an untagged transfer ("Other")
-still moves the money but won't count toward either target.
+**Manage menu**: Add Account, Add Goal, Categories, Add/Manage Recurring
+Rules, everything you set up occasionally rather than daily.
 
-## Interest rates and growth estimates
+**Export/Backup menu** (footer): full JSON backup, CSV export, and restore.
 
-When adding or editing an account, you can set an annual interest/growth
-rate. This is used only to show a rough "Est. in 1 Year" number assuming no
-further deposits or withdrawals, monthly compounding. It's a sanity-check
-estimate, not investment advice or a guarantee.
+Every transaction, account, recurring rule, and goal can be edited or
+deleted from wherever it appears.
+
+## What's still out of scope (and why)
+
+Bank auto-sync (what Monarch/Copilot charge $95-150/year for) requires a
+paid third-party aggregator (Plaid, Yodlee, MX) with real per-connection
+costs, there's no free way to do this responsibly. Multi-user/household
+sharing wasn't requested and adds real complexity (concurrent edits,
+permissions) for a single-user app. Both are legitimate future directions if
+priorities change, just not free, simple additions.
 
 ## Backing up your data anyway
 
-Even though your data lives in a real database, click "Export Backup"
-occasionally, good practice in case you ever forget your password or want a
-local copy for your own records.
+Even with a real database, click Export/Backup → Full Backup occasionally,
+good practice regardless of where data lives.

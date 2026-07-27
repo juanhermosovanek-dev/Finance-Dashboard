@@ -9,7 +9,7 @@ import { seedDefaultCategoriesIfNeeded } from './models/categories.js';
 import { seedDefaultBudgetRuleIfNeeded } from './models/budget.js';
 import { getAllAccounts } from './models/accounts.js';
 import { checkMonthEndWrapUp } from './models/monthEnd.js';
-import { exportBackup, importBackup } from './models/backup.js';
+import { exportBackup, importBackup, exportTransactionsCSV } from './models/backup.js';
 import { renderDashboard } from './ui/dashboard.js';
 import { renderExpensesPage } from './ui/pages/expenses.js';
 import { renderIncomePage } from './ui/pages/income.js';
@@ -18,6 +18,8 @@ import { renderInvestmentsPage } from './ui/pages/investments.js';
 import { renderAlerts } from './ui/alerts.js';
 import { openAddTransactionForm, openAddAccountForm, openAddRecurringForm } from './ui/forms.js';
 import { openRecurringRulesModal } from './ui/recurringRulesModal.js';
+import { openCategoriesModal } from './ui/categoriesModal.js';
+import { openAddGoalForm } from './ui/goalsModal.js';
 import { showMonthEndWrapUp } from './ui/monthEndModal.js';
 import { todayStr } from './util.js';
 
@@ -49,6 +51,31 @@ function setActivePage(page) {
     btn.classList.toggle('active', btn.dataset.page === page);
   });
   renderCurrentPage();
+}
+
+/** Wires up a "Manage"-style dropdown: click to toggle, click outside or a menu item to close. */
+function setupDropdown(buttonId, menuId) {
+  const button = document.querySelector(`#${buttonId}`);
+  const menu = document.querySelector(`#${menuId}`);
+  if (!button || !menu) return;
+
+  button.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.dropdown-menu.open').forEach((m) => {
+      if (m !== menu) m.classList.remove('open');
+    });
+    menu.classList.toggle('open');
+  });
+
+  menu.addEventListener('click', (e) => {
+    // Let the specific button's own handler run, then close the menu,
+    // except for the Restore Backup label/file input, which needs the
+    // menu to stay put while the native file picker is open.
+    if (e.target.closest('label')) return;
+    menu.classList.remove('open');
+  });
+
+  document.addEventListener('click', () => menu.classList.remove('open'));
 }
 
 /** Decides whether to show the login screen or the main app. */
@@ -93,6 +120,9 @@ async function initApp() {
     btn.addEventListener('click', () => setActivePage(btn.dataset.page));
   });
 
+  setupDropdown('manage-menu-btn', 'manage-menu');
+  setupDropdown('export-menu-btn', 'export-menu');
+
   // First-run nudge: if there are no accounts yet, open the add-account form.
   const accounts = await getAllAccounts();
   if (accounts.length === 0) {
@@ -107,6 +137,14 @@ async function initApp() {
     openAddAccountForm(refreshApp);
   });
 
+  document.querySelector('#add-goal-menu-btn').addEventListener('click', () => {
+    openAddGoalForm(refreshApp);
+  });
+
+  document.querySelector('#manage-categories-btn').addEventListener('click', () => {
+    openCategoriesModal(refreshApp);
+  });
+
   document.querySelector('#add-recurring-btn').addEventListener('click', () => {
     openAddRecurringForm(refreshApp);
   });
@@ -117,6 +155,10 @@ async function initApp() {
 
   document.querySelector('#export-backup-btn').addEventListener('click', () => {
     exportBackup();
+  });
+
+  document.querySelector('#export-csv-btn').addEventListener('click', () => {
+    exportTransactionsCSV();
   });
 
   document.querySelector('#sign-out-btn').addEventListener('click', async () => {

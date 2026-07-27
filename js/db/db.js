@@ -15,7 +15,8 @@ const TABLE_NAMES = {
   budgetRules: 'budget_rules',
   balanceSnapshots: 'balance_snapshots',
   recurringRules: 'recurring_rules',
-  appState: 'app_state'
+  appState: 'app_state',
+  goals: 'goals'
 };
 
 // The primary key column name differs only for appState ('key' vs 'id').
@@ -26,7 +27,8 @@ const KEY_COLUMNS = {
   budgetRules: 'id',
   balanceSnapshots: 'id',
   recurringRules: 'id',
-  appState: 'key'
+  appState: 'key',
+  goals: 'id'
 };
 
 const STORES = TABLE_NAMES; // kept for compatibility with model files that import STORES

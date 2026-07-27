@@ -17,8 +17,8 @@ const DEFAULT_CATEGORIES = [
   { name: 'Food', bucket: BUDGET_BUCKETS.SPENDING },
   { name: 'Transportation', bucket: BUDGET_BUCKETS.SPENDING },
   { name: 'Personal & Lifestyle', bucket: BUDGET_BUCKETS.SPENDING },
-  { name: 'Savings', bucket: BUDGET_BUCKETS.SAVINGS },
-  { name: 'Investing', bucket: BUDGET_BUCKETS.SAVINGS }
+  { name: 'Savings', bucket: BUDGET_BUCKETS.SAVINGS, protected: true },
+  { name: 'Investing', bucket: BUDGET_BUCKETS.SAVINGS, protected: true }
 ];
 
 /** Called once on first app launch to seed the 6 default categories. */
@@ -39,13 +39,51 @@ async function getAllCategories() {
   return dbGetAll('categories');
 }
 
+async function createCategory({ name, bucket }) {
+  const category = { id: generateId('cat'), name, bucket, protected: false };
+  await dbAdd('categories', category);
+  return category;
+}
+
 async function updateCategory(id, changes) {
   const categories = await dbGetAll('categories');
   const existing = categories.find((c) => c.id === id);
   if (!existing) throw new Error(`Category ${id} not found`);
+  if (existing.protected && changes.name && changes.name !== existing.name) {
+    throw new Error('"Savings" and "Investing" are used by name in the budget math and can\'t be renamed.');
+  }
   const updated = { ...existing, ...changes };
   await dbPut('categories', updated);
   return updated;
 }
 
-export { seedDefaultCategoriesIfNeeded, getAllCategories, updateCategory };
+/**
+ * Deleting a category doesn't delete the transactions that used it, they're
+ * left uncategorized (categoryId set to null) rather than silently vanishing.
+ */
+async function deleteCategory(id) {
+  const categories = await dbGetAll('categories');
+  const existing = categories.find((c) => c.id === id);
+  if (!existing) throw new Error(`Category ${id} not found`);
+  if (existing.protected) {
+    throw new Error('"Savings" and "Investing" are required by the budget system and can\'t be deleted.');
+  }
+
+  const { getAllTransactions, updateTransaction } = await import('./transactions.js');
+  const affected = (await getAllTransactions()).filter((tx) => tx.categoryId === id);
+  for (const tx of affected) {
+    await updateTransaction(tx.id, { categoryId: null });
+  }
+
+  const { dbDelete } = await import('../db/db.js');
+  await dbDelete('categories', id);
+  return { deleted: id, uncategorizedCount: affected.length };
+}
+
+export {
+  seedDefaultCategoriesIfNeeded,
+  getAllCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory
+};

@@ -25,14 +25,32 @@ async function checkMonthEndWrapUp() {
   }
 
   const priorMonth = addMonths(`${currentMonth}-01`, -1).slice(0, 7);
+  const twoMonthsAgo = addMonths(`${currentMonth}-01`, -2).slice(0, 7);
   const progress = await getBudgetProgressForMonth(priorMonth);
+  const priorProgress = await getBudgetProgressForMonth(twoMonthsAgo);
   const history = await getNetWorthHistory();
 
   const netWorthChange = calculateNetWorthChangeForMonth(history, priorMonth);
+  const insight = buildInsight(progress, priorProgress);
 
   await markWrapUpShown(currentMonth);
 
-  return { month: priorMonth, progress, netWorthChange };
+  return { month: priorMonth, progress, netWorthChange, insight };
+}
+
+/**
+ * Builds one plain-language sentence comparing spending to the month
+ * before it, the same idea behind the "AI summary" features other finance
+ * apps charge a subscription for, just simpler and rule-based.
+ */
+function buildInsight(current, prior) {
+  if (!prior || prior.spending === 0) return null;
+  const change = current.spending - prior.spending;
+  const pct = Math.round((Math.abs(change) / prior.spending) * 100);
+  if (pct < 3) return 'Your spending was about the same as the month before.';
+  return change > 0
+    ? `You spent ${pct}% more than the previous month.`
+    : `You spent ${pct}% less than the previous month, nice work.`;
 }
 
 function calculateNetWorthChangeForMonth(history, yearMonth) {

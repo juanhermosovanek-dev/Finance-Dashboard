@@ -5,7 +5,7 @@ import { formatMoney } from '../util.js';
 import { openModal, closeModal } from './forms.js';
 
 function showMonthEndWrapUp(summary) {
-  const { month, progress, netWorthChange } = summary;
+  const { month, progress, netWorthChange, insight } = summary;
   const netWorthLine =
     netWorthChange === null
       ? 'Not enough data yet to show a change.'
@@ -13,6 +13,7 @@ function showMonthEndWrapUp(summary) {
 
   const modal = openModal(`
     <h2>${month} Wrap-Up</h2>
+    ${insight ? `<p style="font-size:14px;color:var(--color-ink-soft);margin-top:-8px;">${insight}</p>` : ''}
     <div class="form-row">
       <label>Income</label>
       <p class="card-value" style="font-size:18px">${formatMoney(progress.income)}</p>

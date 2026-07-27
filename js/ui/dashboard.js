@@ -17,6 +17,7 @@ import {
   openEditAccountForm,
   confirmAndDeleteAccount
 } from './forms.js';
+import { renderGoalsSection } from './goalsSection.js';
 
 async function renderDashboard(root, onChanged) {
   const currentMonth = monthKey(todayStr());
@@ -69,6 +70,10 @@ async function renderDashboard(root, onChanged) {
       ${renderAccountsTable(accountRows)}
     </div>
 
+    <div class="section" id="goals-section">
+      <!-- Populated below -->
+    </div>
+
     <div class="section">
       <div class="section-header">
         <h2>Recent Transactions</h2>
@@ -76,6 +81,8 @@ async function renderDashboard(root, onChanged) {
       <div id="recent-transactions"></div>
     </div>
   `;
+
+  await renderGoalsSection(root.querySelector('#goals-section'), onChanged);
 
   renderLineChart(
     root.querySelector('#net-worth-chart'),

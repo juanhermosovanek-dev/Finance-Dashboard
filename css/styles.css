@@ -488,3 +488,136 @@ td.row-actions {
   border: 1px dashed var(--color-hairline);
   border-radius: var(--radius);
 }
+
+.table-search-row {
+  margin-bottom: var(--space-3);
+}
+
+.table-search {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.table-search:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+}
+
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+}
+
+.table-pagination-label {
+  font-size: 12px;
+  color: var(--color-ink-soft);
+}
+
+/* ==========================================================================
+   Goals
+   ========================================================================== */
+
+.goal-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.goal-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.goal-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.goal-bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--color-primary-bg);
+  overflow: hidden;
+}
+
+.goal-bar-fill {
+  height: 100%;
+  background: var(--color-good);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.goal-card-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+  font-size: 12px;
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+}
+
+/* ==========================================================================
+   Dropdown menus (Manage, Export)
+   ========================================================================== */
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(27, 36, 48, 0.12);
+  z-index: 40;
+  padding: var(--space-1);
+}
+
+.dropdown-up .dropdown-menu {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.dropdown-menu.open {
+  display: block;
+}
+
+.dropdown-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  border-radius: var(--radius);
+}
+
+.dropdown-menu button:hover {
+  background: var(--color-primary-bg);
+  border: none;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--color-hairline);
+  margin: var(--space-1) 0;
+}
